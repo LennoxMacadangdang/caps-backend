@@ -92,16 +92,22 @@ router.post("/", async (req, res) => {
 
     // Build order
     const totalAmount = items.reduce((sum, i) => i.type === "product" ? sum + (productMap[i.id]?.price || 0) * i.quantity : sum + (serviceMap[i.id]?.[i.size] || 0) * i.quantity, 0);
-    const orderData = {
-      order_date: new Date().toISOString(),
-      total_quantity: items.reduce((s, i) => s + i.quantity, 0),
-      total_amount: totalAmount,
-      items: items.map(i => i.type === "product" ? `${i.quantity}x ${productMap[i.id]?.name || i.name} [product]` : `${i.quantity}x ${serviceMap[i.id]?.service_name || i.name} (${i.size}) [service]`).join(", "),
-      item_details: JSON.stringify(items),
-      name: req.body.name || "POS Order",
-      payment_method: req.body.payment_method || "cash",
-      payment_proof: paymentProofUrl,
-    };
+const orderData = {
+  reference_number: req.body.reference_number, // ✅ taken from frontend
+  order_date: new Date().toISOString(),
+  total_quantity: items.reduce((s, i) => s + i.quantity, 0),
+  total_amount: totalAmount,
+  items: items.map(i =>
+    i.type === "product"
+      ? `${i.quantity}x ${productMap[i.id]?.name || i.name} [product]`
+      : `${i.quantity}x ${serviceMap[i.id]?.service_name || i.name} (${i.size}) [service]`
+  ).join(", "),
+  item_details: JSON.stringify(items),
+  name: req.body.name || "POS Order",
+  payment_method: req.body.payment_method || "cash",
+  payment_proof: paymentProofUrl,
+};
+
 
     // Insert into POS orders table
     const orderResp = await fetch(`${POS_URL}/rest/v1/orders`, {
