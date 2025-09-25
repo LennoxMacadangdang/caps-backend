@@ -33,7 +33,7 @@ router.put("/updateAppointmentStatus/:id", async (req, res) => {
     
     console.log("Appointment data:", JSON.stringify(appointment, null, 2));
     
-    if (appointment.status_id !== 1) {
+    if (appointment.status_id !== 3) {
       console.error("Invalid status - only upcoming appointments can be updated. Current status:", appointment.status_id);
       return res.status(400).json({ message: "Only upcoming appointments can be updated" });
     }

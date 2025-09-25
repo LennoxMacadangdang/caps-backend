@@ -14,7 +14,7 @@ router.get("/getAllUpcomingAppointments", async (req, res) => {
         status:status_id (status_name), 
         working_hours:time_id (time)
       `)
-      .eq("status_id", 1)
+      .eq("status_id", 3)
       .order("date", { ascending: true });
 
     if (error) throw error;
