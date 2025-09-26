@@ -18,7 +18,11 @@ router.put("/cancelAppointment/:id", async (req, res) => {
 
     const { data, error } = await supabase
       .from("appointments")
-      .update({ status_id: 5 })
+      .update({
+        status_id: 5,
+        date: null,
+        time_id: null
+      })
       .eq("appointment_id", id)
       .select();
 
