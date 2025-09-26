@@ -8,7 +8,7 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?select=order_id,order_date,total_quantity,total_amount,items,name,payment_method,payment_proof`,
+      `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?select=order_id,order_date,total_quantity,total_amount,items,name,payment_method,payment_proof,reference_number`,
       { headers }
     );
     const text = await response.text();
@@ -27,7 +27,7 @@ router.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const response = await fetch(
-      `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?order_id=eq.${id}&select=order_id,order_date,total_quantity,total_amount,items,name,payment_method,payment_proof`,
+      `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?order_id=eq.${id}&select=order_id,order_date,total_quantity,total_amount,items,name,payment_method,payment_proof,reference_number`,
       { headers }
     );
     const text = await response.text();
