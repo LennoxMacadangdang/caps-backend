@@ -4,11 +4,31 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const supabaseUrl = process.env.POS_SUPABASE_URL;
-const supabaseKey = process.env.POS_SUPABASE_KEY;
+/* =======================
+   POS SUPABASE CLIENT
+======================= */
+const posUrl = process.env.POS_SUPABASE_URL;
+const posKey = process.env.POS_SUPABASE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_KEY in .env file");
+if (!posUrl || !posKey) {
+  throw new Error("Missing POS_SUPABASE_URL or POS_SUPABASE_KEY in .env");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const posSupabase = createClient(posUrl, posKey);
+
+/* ==============================
+   APPOINTMENT SUPABASE CLIENT
+============================== */
+const appointmentUrl = process.env.APPOINTMENT_SUPABASE_URL;
+const appointmentKey = process.env.APPOINTMENT_SUPABASE_KEY;
+
+if (!appointmentUrl || !appointmentKey) {
+  throw new Error(
+    "Missing APPOINTMENT_SUPABASE_URL or APPOINTMENT_SUPABASE_KEY in .env"
+  );
+}
+
+export const appointmentSupabase = createClient(
+  appointmentUrl,
+  appointmentKey
+);

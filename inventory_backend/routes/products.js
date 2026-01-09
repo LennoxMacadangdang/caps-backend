@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get("/", async (_req, res) => {
   try {
-    const response = await fetch(`${INVENTORY_URL}/rest/v1/products?category_id=eq.3&select=*`, {
+    const response = await fetch(`${INVENTORY_URL}/rest/v1/products?category_id=eq.1&select=*`, {
       headers: supabaseHeaders(INVENTORY_KEY)
     });
     res.json(await response.json());

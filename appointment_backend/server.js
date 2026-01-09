@@ -13,6 +13,9 @@ app.use(cors());
 app.use(require("./routes/appointments"));
 app.use(require("./routes/updateAppointment"));
 app.use(require("./routes/cancelAppointment"));
+app.use(require("./routes/approveAppointments")); // ✅ REQUIRED
+
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

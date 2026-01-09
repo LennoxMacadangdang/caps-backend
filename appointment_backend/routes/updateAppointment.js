@@ -12,7 +12,7 @@ router.put("/updateAppointmentStatus/:id", async (req, res) => {
     const { data: appointment, error: checkError } = await supabase
       .from("appointments")
       .select(`
-        appointment_id, service_id, car_size, vehicleBrand, vehicleModel, vehicleColor,
+        appointment_id, service_id, car_size,
         date, time_id, status_id,
         services:service_id (service_name)
       `)

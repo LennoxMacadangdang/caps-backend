@@ -9,9 +9,9 @@ router.get("/getAllUpcomingAppointments", async (req, res) => {
       .from("appointments")
       .select(`
         appointment_id, date, car_size, price, paymentMethod,
-        created_at, paymentProof, vehicleBrand, vehicleModel, vehicleColor,
-        services:service_id (service_name), 
-        status:status_id (status_name), 
+        created_at, paymentProof,
+        services:service_id (service_name),
+        status:status_id (status_name),
         working_hours:time_id (time)
       `)
       .eq("status_id", 3)
@@ -27,7 +27,6 @@ router.get("/getAllUpcomingAppointments", async (req, res) => {
       time: appt.working_hours?.time || null,
       car_size: appt.car_size,
       price: appt.price,
-      vehicleBrand: appt.vehicleBrand,
       vehicleModel: appt.vehicleModel,
       vehicleColor: appt.vehicleColor,
       payment_method: appt.paymentMethod,
@@ -49,12 +48,12 @@ router.get("/getAllHistoryAppointments", async (req, res) => {
       .from("appointments")
       .select(`
         appointment_id, date, car_size, price, paymentMethod,
-        created_at, paymentProof, vehicleBrand, vehicleModel, vehicleColor,
-        services:service_id (service_name), 
-        status:status_id (status_name), 
+        created_at, paymentProof,
+        services:service_id (service_name),
+        status:status_id (status_name),
         working_hours:time_id (time)
       `)
-      .in("status_id", [2])
+      .eq("status_id", 2)
       .order("date", { ascending: true });
 
     if (error) throw error;
@@ -67,7 +66,6 @@ router.get("/getAllHistoryAppointments", async (req, res) => {
       time: appt.working_hours?.time || null,
       car_size: appt.car_size,
       price: appt.price,
-      vehicleBrand: appt.vehicleBrand,
       vehicleModel: appt.vehicleModel,
       vehicleColor: appt.vehicleColor,
       payment_method: appt.paymentMethod,
@@ -79,6 +77,45 @@ router.get("/getAllHistoryAppointments", async (req, res) => {
   } catch (err) {
     console.error("❌ Error:", err.message);
     res.status(500).json({ message: "Error fetching history appointments" });
+  }
+});
+
+// ✅ Get all pending appointments
+router.get("/getPendingAppointments", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("appointments")
+      .select(`
+        appointment_id, date, car_size, price, paymentMethod,
+        created_at, paymentProof,
+        services:service_id (service_name),
+        status:status_id (status_name),
+        working_hours:time_id (time)
+      `)
+      .eq("status_id", 1)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    const formatted = data.map(appt => ({
+      appointment_id: appt.appointment_id,
+      service_name: appt.services?.service_name || null,
+      status: appt.status?.status_name || null,
+      date: appt.date,
+      time: appt.working_hours?.time || null,
+      car_size: appt.car_size,
+      price: appt.price,
+      vehicleModel: appt.vehicleModel,
+      vehicleColor: appt.vehicleColor,
+      payment_method: appt.paymentMethod,
+      paymentProof: appt.paymentProof,
+      created_at: appt.created_at,
+    }));
+
+    res.status(200).json({ pending_appointments: formatted });
+  } catch (err) {
+    console.error("❌ Error:", err.message);
+    res.status(500).json({ message: "Error fetching pending appointments" });
   }
 });
 
