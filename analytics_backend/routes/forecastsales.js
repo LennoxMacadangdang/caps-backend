@@ -4,35 +4,47 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const router = express.Router();
 
-// Initialize Gemini 2.5
+// Gemini init
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Use the recommended Gemini 2.5 model
 const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash", // ✅ updated from retired Gemini 1.5 series
-  generationConfig: { responseMimeType: "application/json" }
+  model: "gemini-2.5-flash-lite",
+  generationConfig: {
+    responseMimeType: "application/json"
+  }
 });
 
+// GET /forecastsales?start=YYYY-MM-DD&end=YYYY-MM-DD&days=XX
 router.get("/", async (req, res) => {
   try {
-    const { start, end, days = 7 } = req.query;
+    const { start, end, days } = req.query;
 
-    // Fetch orders from Supabase
+    // ⏱ Forecast control (max 6 months)
+    const MAX_DAYS = 180;
+    const forecastDays = Math.min(Number(days) || MAX_DAYS, MAX_DAYS);
+
+    // 📅 Forecast starts after selected end date
+    const forecastStartDate = end ? new Date(end) : new Date();
+    forecastStartDate.setDate(forecastStartDate.getDate() + 1);
+    const forecastStart = forecastStartDate.toISOString().split("T")[0];
+
+    // 📦 Fetch historical orders
     let query = posSupabase
       .from("orders")
       .select("item_details, order_date")
       .not("item_details", "is", null);
 
-    if (start && end) query = query.gte("order_date", start).lte("order_date", end);
+    if (start && end) {
+      query = query.gte("order_date", start).lte("order_date", end);
+    }
 
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) return res.status(400).json({ error: error.message });
 
-    // Prepare product data
-    const productsData = {};
+    // 📊 Build product revenue history
+    const productsMap = {};
+
     data.forEach(order => {
-      if (!order.item_details) return;
-
       let items;
       try {
         items = Array.isArray(order.item_details)
@@ -45,56 +57,60 @@ router.get("/", async (req, res) => {
 
       items.forEach(item => {
         if (!item || item.type?.toLowerCase() !== "product") return;
-        const name = item.name;
-        const qty = item.quantity || 1;
-        const price = item.price || 0;
-        const revenue = qty * price;
-        const date = order.order_date;
 
-        if (!productsData[name]) productsData[name] = [];
-        productsData[name].push({ date, revenue });
+        const date = order.order_date.split("T")[0];
+        const revenue = (item.quantity || 1) * (item.price || 0);
+
+        if (!productsMap[item.name]) {
+          productsMap[item.name] = [];
+        }
+
+        productsMap[item.name].push({ date, revenue });
       });
     });
 
-    // Generate forecasts in parallel
-    const forecastEntries = await Promise.all(
-      Object.entries(productsData).map(async ([product, records]) => {
+    // 🤖 Generate forecasts (UI-safe structure)
+    const forecastResults = await Promise.all(
+      Object.entries(productsMap).map(async ([product, history]) => {
         const prompt = `
-          You are an AI sales forecaster. Here is historical daily revenue for the product "${product}":
-          ${JSON.stringify(records)}
+You are an AI sales forecaster.
 
-          Predict revenue for the next ${days} days based on trends and seasonality.
-          
-          Return ONLY a raw JSON array with this exact structure:
-          [
-            {"date": "YYYY-MM-DD", "predicted_revenue": number}, ...
-          ]
-        `;
+Historical daily revenue for "${product}":
+${JSON.stringify(history)}
+
+Forecast DAILY revenue starting from ${forecastStart}
+for the next ${forecastDays} days.
+
+Return ONLY raw JSON:
+[
+  { "date": "YYYY-MM-DD", "predicted_revenue": number }
+]
+`;
 
         try {
           const result = await model.generateContent(prompt);
-          const text = result.response.text();
-          return [product, JSON.parse(text)];
-        } catch (e) {
-          console.error(`Error forecasting for ${product}:`, e);
-          return [product, []]; // fallback
+          return {
+            product,
+            forecast: JSON.parse(result.response.text())
+          };
+        } catch {
+          return { product, forecast: [] };
         }
       })
     );
 
-    const forecast = Object.fromEntries(forecastEntries);
-
+    // ✅ UI-compatible response
     res.json({
-      source: "POS",
-      report: "Product Revenue Forecast (Gemini 2.5-Powered)",
+      data: forecastResults,
+      count: forecastResults.length,
       filtered: !!(start && end),
       range: { start, end },
-      forecast
+      forecast_start: forecastStart,
+      forecast_days: forecastDays
     });
 
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: "Failed to fetch AI forecast", details: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
