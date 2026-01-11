@@ -14,7 +14,7 @@ app.use(require("./routes/appointments"));
 app.use(require("./routes/updateAppointment"));
 app.use(require("./routes/cancelAppointment"));
 app.use(require("./routes/approveAppointments")); // ✅ REQUIRED
-
+app.use(require("./routes/rejectAppointment"));
 
 
 const PORT = process.env.PORT || 5000;

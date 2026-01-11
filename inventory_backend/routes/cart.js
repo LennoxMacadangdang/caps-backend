@@ -30,28 +30,24 @@ router.post("/remove-one", (req, res) => {
   if (!id || !type) return res.status(400).json({ error: "Missing id or type" });
 
   let itemFound = false;
-  cartData = cartData
-    .map((item) => {
-      if (String(item.id) === String(id) && item.type === type) {
-        if (type === "service" && size && item.size !== size) return item;
-
-        if (item.quantity > 1) {
-          itemFound = true;
-          return { ...item, quantity: item.quantity - 1 };
-        } else {
-          itemFound = true;
-          return null; // remove item
-        }
-      }
-      return item;
-    })
-    .filter(Boolean);
+  cartData = cartData.filter((item) => {
+    // Match by id, type, and size (for services)
+    const isMatch = String(item.id) === String(id) && 
+                    item.type === type &&
+                    (type !== "service" || !size || item.size === size);
+    
+    if (isMatch) {
+      itemFound = true;
+      return false; // Remove the entire item from cart
+    }
+    return true; // Keep other items
+  });
 
   rebuildCartText();
   if (!itemFound)
     return res.status(404).json({ error: "Item not found in cart" });
 
-  res.json({ message: "One item removed", cart: cartData });
+  res.json({ message: "Item removed from cart", cart: cartData });
 });
 
 
@@ -59,6 +55,9 @@ router.post("/remove-one", (req, res) => {
 router.post("/addtocart", async (req, res) => {
   try {
     const { id, type, quantity = 1, size, name, price } = req.body;
+    
+    console.log("📥 Add to cart request:", { id, type, quantity, size, name, price });
+    
     if (!id || !type)
       return res.status(400).json({ error: "Missing id or type" });
 
@@ -67,10 +66,11 @@ router.post("/addtocart", async (req, res) => {
       let productPrice = price;
       let productStock = null;
 
+      // Fetch product details if not provided
       if (!productName || !productPrice) {
         const productMap = await fetchProductsByIds([id]);
         const product =
-          productMap[String(id)] || // ✅ force string lookup
+          productMap[String(id)] ||
           Object.values(productMap).find(
             (p) => String(p.product_id) === String(id)
           );
@@ -83,19 +83,33 @@ router.post("/addtocart", async (req, res) => {
         productStock = product.stock;
       }
 
+      // Check stock availability
       if (productStock !== null && productStock < quantity) {
         return res.status(400).json({
           error: `Insufficient stock for ${productName}`,
         });
       }
 
-      cartData.push({
-        id: Number(id), // ✅ store as number for consistency
-        type,
-        name: productName,
-        price: productPrice,
-        quantity,
-      });
+      // ✅ FIX: Check if product already exists in cart
+      const existingItemIndex = cartData.findIndex(
+        (item) => String(item.id) === String(id) && item.type === "product"
+      );
+
+      if (existingItemIndex !== -1) {
+        // Update existing item quantity
+        cartData[existingItemIndex].quantity += quantity;
+        console.log(`✅ Updated existing product: ${productName}, new quantity: ${cartData[existingItemIndex].quantity}`);
+      } else {
+        // Add new item to cart
+        cartData.push({
+          id: Number(id),
+          type,
+          name: productName,
+          price: productPrice,
+          quantity,
+        });
+        console.log(`✅ Added new product to cart: ${productName}, quantity: ${quantity}`);
+      }
     }
 
     else if (type === "service") {
@@ -103,6 +117,7 @@ router.post("/addtocart", async (req, res) => {
       let servicePrice = price;
       let finalSize = size;
 
+      // Fetch service details if not provided
       if (!serviceName || !servicePrice) {
         const serviceMap = await fetchServicesByIds([id]);
         const service =
@@ -114,8 +129,9 @@ router.post("/addtocart", async (req, res) => {
         if (!service)
           return res.status(404).json({ error: `Service ${id} not found` });
 
+        // Determine size if not provided
         if (!finalSize) {
-          const availableSizes = ["small", "medium", "large"].filter(
+          const availableSizes = ["small", "medium", "large", "xlarge", "xxlarge"].filter(
             (k) => service[k] != null
           );
           if (!availableSizes.length) {
@@ -136,14 +152,30 @@ router.post("/addtocart", async (req, res) => {
         servicePrice = service[finalSize];
       }
 
-      cartData.push({
-        id,
-        type,
-        name: serviceName,
-        size: finalSize,
-        price: servicePrice,
-        quantity,
-      });
+      // ✅ FIX: Check if service with same size already exists in cart
+      const existingItemIndex = cartData.findIndex(
+        (item) => 
+          String(item.id) === String(id) && 
+          item.type === "service" && 
+          item.size === finalSize
+      );
+
+      if (existingItemIndex !== -1) {
+        // Update existing item quantity
+        cartData[existingItemIndex].quantity += quantity;
+        console.log(`✅ Updated existing service: ${serviceName} (${finalSize}), new quantity: ${cartData[existingItemIndex].quantity}`);
+      } else {
+        // Add new item to cart
+        cartData.push({
+          id,
+          type,
+          name: serviceName,
+          size: finalSize,
+          price: servicePrice,
+          quantity,
+        });
+        console.log(`✅ Added new service to cart: ${serviceName} (${finalSize}), quantity: ${quantity}`);
+      }
     }
 
     else {
@@ -153,8 +185,10 @@ router.post("/addtocart", async (req, res) => {
     }
 
     rebuildCartText();
+    console.log("📦 Current cart:", cartData);
     res.json({ message: "Item added to cart", cart: cartData });
   } catch (err) {
+    console.error("❌ Add to cart error:", err);
     res.status(500).json({ error: err.message });
   }
 });
